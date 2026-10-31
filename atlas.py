@@ -76,22 +76,40 @@ def run_program(program):
     pc = 0
     cycles = 0
     instructions_executed = 0
+    branch_instructions = 0
+    branches_taken = 0
 
     while pc < len(program):
 
         instruction = program[pc]
+        operation = instruction[0]
 
-        pc = execute_instruction(
+        next_pc = execute_instruction(
             instruction, pc, registers, memory
         )
 
-        cycles += instruction_cycles[instruction[0]]
+        cycles += instruction_cycles[operation]
         instructions_executed += 1
+
+        if operation in ("BEQ", "BNE"):
+            branch_instructions += 1
+
+            if next_pc != pc + 1:
+                branches_taken += 1
+
+        pc = next_pc
 
     cpi = cycles / instructions_executed
     ipc = instructions_executed / cycles
 
-    return instructions_executed, cycles, cpi, ipc
+    return {
+        "instructions": instructions_executed,
+        "cycles": cycles,
+        "cpi": cpi,
+        "ipc": ipc,
+        "branches": branch_instructions,
+        "taken": branches_taken
+    }
 
 
 # Workload 1: Compute-heavy
@@ -114,23 +132,36 @@ memory_program = [
 ]
 
 
-# Run both workloads
-compute_results = run_program(compute_program)
-memory_results = run_program(memory_program)
+# Workload 3: Branch-heavy
+branch_program = [
+    ("LOADI", "R1", 10),
+    ("LOADI", "R2", 20),
+    ("BEQ", "R1", "R2", 5),
+    ("ADD", "R3", "R1", "R2"),
+    ("BNE", "R1", "R2", 6),
+    ("LOADI", "R3", 100),
+    ("ADD", "R3", "R3", "R1")
+]
 
 
-# Display comparison
+workloads = {
+    "COMPUTE-HEAVY": compute_program,
+    "MEMORY-HEAVY": memory_program,
+    "BRANCH-HEAVY": branch_program
+}
+
+
 print("ATLAS WORKLOAD COMPARISON")
 print("=========================")
 
-print("\nCOMPUTE-HEAVY WORKLOAD")
-print("Instructions:", compute_results[0])
-print("Clock Cycles:", compute_results[1])
-print("CPI:", round(compute_results[2], 2))
-print("IPC:", round(compute_results[3], 2))
+for name, program in workloads.items():
 
-print("\nMEMORY-HEAVY WORKLOAD")
-print("Instructions:", memory_results[0])
-print("Clock Cycles:", memory_results[1])
-print("CPI:", round(memory_results[2], 2))
-print("IPC:", round(memory_results[3], 2))
+    result = run_program(program)
+
+    print("\n" + name)
+    print("Instructions:", result["instructions"])
+    print("Clock Cycles:", result["cycles"])
+    print("CPI:", round(result["cpi"], 2))
+    print("IPC:", round(result["ipc"], 2))
+    print("Branch Instructions:", result["branches"])
+    print("Branches Taken:", result["taken"])
