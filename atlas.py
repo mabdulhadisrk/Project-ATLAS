@@ -1,21 +1,5 @@
 
-registers = {
-    "R1": 0,
-    "R2": 0,
-    "R3": 0
-}
-
-memory = {}
-
-program = [
-    ("LOADI", "R1", 10),
-    ("STORE", "R1", 100),
-    ("LOAD", "R2", 100),
-    ("ADD", "R3", "R1", "R2")
-]
-
-
-def execute_instruction(instruction, pc):
+def execute_instruction(instruction, pc, registers, memory):
 
     operation = instruction[0]
 
@@ -63,12 +47,11 @@ def execute_instruction(instruction, pc):
             return target
 
     else:
-        print("Unknown instruction:", operation)
+        raise ValueError("Unknown instruction: " + operation)
 
     return pc + 1
 
 
-# Assumed cycle costs for each instruction
 instruction_cycles = {
     "LOADI": 1,
     "ADD": 1,
@@ -80,24 +63,74 @@ instruction_cycles = {
 }
 
 
-# Execute program and track cycles
-pc = 0
-cycles = 0
+def run_program(program):
 
-while pc < len(program):
-    instruction = program[pc]
+    registers = {
+        "R1": 0,
+        "R2": 0,
+        "R3": 0
+    }
 
-    pc = execute_instruction(instruction, pc)
+    memory = {}
 
-    cycles += instruction_cycles[instruction[0]]
+    pc = 0
+    cycles = 0
+    instructions_executed = 0
+
+    while pc < len(program):
+
+        instruction = program[pc]
+
+        pc = execute_instruction(
+            instruction, pc, registers, memory
+        )
+
+        cycles += instruction_cycles[instruction[0]]
+        instructions_executed += 1
+
+    cpi = cycles / instructions_executed
+    ipc = instructions_executed / cycles
+
+    return instructions_executed, cycles, cpi, ipc
 
 
-# Display results
-print("Total Clock Cycles:", cycles)
+# Workload 1: Compute-heavy
+compute_program = [
+    ("LOADI", "R1", 10),
+    ("LOADI", "R2", 20),
+    ("ADD", "R3", "R1", "R2"),
+    ("ADD", "R3", "R3", "R1"),
+    ("SUB", "R2", "R3", "R1")
+]
 
-print("Final Register State:")
 
-for register, value in registers.items():
-    print(register, "=", value)
+# Workload 2: Memory-heavy
+memory_program = [
+    ("LOADI", "R1", 10),
+    ("STORE", "R1", 100),
+    ("LOAD", "R2", 100),
+    ("STORE", "R2", 200),
+    ("LOAD", "R3", 200)
+]
 
-print("Final Memory State:", memory)
+
+# Run both workloads
+compute_results = run_program(compute_program)
+memory_results = run_program(memory_program)
+
+
+# Display comparison
+print("ATLAS WORKLOAD COMPARISON")
+print("=========================")
+
+print("\nCOMPUTE-HEAVY WORKLOAD")
+print("Instructions:", compute_results[0])
+print("Clock Cycles:", compute_results[1])
+print("CPI:", round(compute_results[2], 2))
+print("IPC:", round(compute_results[3], 2))
+
+print("\nMEMORY-HEAVY WORKLOAD")
+print("Instructions:", memory_results[0])
+print("Clock Cycles:", memory_results[1])
+print("CPI:", round(memory_results[2], 2))
+print("IPC:", round(memory_results[3], 2))
